@@ -74,6 +74,10 @@
           <label>担当者</label>
           <input type="text" id="ownerName" placeholder="担当者名" class="input-medium">
         </div>
+        <div class="form-row">
+          <label>見積区分</label>
+          <span id="quoteCategoryDisplay" class="quote-category-badge">―</span>
+        </div>
       </div>
 
       <div class="form-section">
@@ -86,7 +90,7 @@
           </div>
         </div>
         <div class="form-row">
-          <label>値引き額</label>
+          <label id="discountLabel">値引き額</label>
           <div class="price-group">
             <span class="currency-sign">¥</span>
             <input type="number" id="discountAmount" placeholder="0" min="0" class="input-price">

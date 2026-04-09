@@ -122,9 +122,10 @@ const QuotationPDF = (() => {
       const subtotal = (s.items || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
       return { ...s, subtotal };
     });
-    const grandTotal    = sectionTotals.reduce((sum, s) => sum + s.subtotal, 0);
-    const discount      = Number(data.discount) || 0;
-    const deliveryPrice = Number(data.deliveryPrice) || grandTotal;
+    const grandTotal      = sectionTotals.reduce((sum, s) => sum + s.subtotal, 0);
+    const discount        = Number(data.discount) || 0;
+    const quoteCategory   = data.quoteCategory || '';
+    const deliveryPrice   = Number(data.deliveryPrice) || grandTotal;
     const legalRate     = (Number(data.legalWelfareRate) || 14.6) / 100;
     const laborCost     = Number(data.laborCost) || Math.round(deliveryPrice * 0.115);
     const legalWelfare  = Math.round(laborCost * legalRate);
@@ -183,7 +184,7 @@ const QuotationPDF = (() => {
         // ====================================================
         ...buildCoverPage({
           quoteNoStr, dateStr, branch,
-          data, sectionTotals, grandTotal, discount,
+          data, sectionTotals, grandTotal, discount, quoteCategory,
           deliveryPrice, materialCost, laborCost, legalWelfare, legalRate,
         }),
         { text: '', pageBreak: 'after' },
@@ -199,7 +200,9 @@ const QuotationPDF = (() => {
   // ── 1ページ目（表紙）────────────────────────────────────────
 
   function buildCoverPage({ quoteNoStr, dateStr, branch, data, sectionTotals,
-    grandTotal, discount, deliveryPrice, materialCost, laborCost, legalWelfare, legalRate }) {
+    grandTotal, discount, quoteCategory, deliveryPrice, materialCost, laborCost, legalWelfare, legalRate }) {
+    // 値引き額ラベル: 工事を含む場合→「出精値引き」、物販・作業→「値引き額」
+    const discountLabel = (quoteCategory || '').includes('工事') ? '出精値引き' : '値引き額';
 
     const COL_WIDTHS = [22, '*', 36, 30, 58, 58];   // No|項目|数量|単位|単価|金額
 
@@ -252,7 +255,7 @@ const QuotationPDF = (() => {
     // 値引き額（0の場合も表示）
     tableRows.push([
       { text: '', border: [true, false, false, false] },
-      { text: '値 引 き 額', alignment: 'center', colSpan: 4, border: [false, false, false, false] },
+      { text: discountLabel, alignment: 'center', colSpan: 4, border: [false, false, false, false] },
       {}, {}, {},
       { text: discount > 0 ? '▲ ' + fmt(discount) : fmt(0), alignment: 'right', border: [false, false, true, false] },
     ]);

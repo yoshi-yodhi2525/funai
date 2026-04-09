@@ -254,9 +254,10 @@ const app = (() => {
     quoteNumber:  null,   // Zoho自動採番 Quote_Number (整数)
     seqNo:        '',     // CQR の連番部分（ユーザー入力 or 自動採番）
     revision:     1,      // 改訂番号
-    customerName: '',
-    projectName:  '',
-    ownerName:    '',
+    customerName:   '',
+    projectName:    '',
+    ownerName:      '',
+    quoteCategory:  '',  // 見積区分（field63）: 物販 / 作業（100万以下） / 工事（100万超）
     date:         new Date(),
     deliveryTerm:   'お打ち合わせ願います',
     deliveryMethod: 'お打ち合わせ願います',
@@ -370,10 +371,12 @@ const app = (() => {
     if (!quote) { loadDemoData(); return; }
 
     // 基本情報
-    state.quoteNumber  = quote.Quote_Number || null;
-    state.customerName = quote.Account_Name?.name || quote.Account_Name || '';
-    state.projectName  = quote.Subject || '';
-    state.ownerName    = quote.Owner?.name || '';
+    state.quoteNumber     = quote.Quote_Number || null;
+    state.customerName    = quote.Account_Name?.name || quote.Account_Name || '';
+    state.projectName     = quote.Subject || '';
+    state.ownerName       = quote.Owner?.name || '';
+    state.quoteCategory   = quote.field63 || '';
+    console.log('[DEBUG] field63 raw value:', JSON.stringify(quote.field63));
     state.deliveryPrice = Number(quote.Grand_Total) || 0;
 
     // カスタムフィールドから読み込み
@@ -436,6 +439,18 @@ const app = (() => {
     setValue('customerName',    state.customerName);
     setValue('projectName',     state.projectName);
     setValue('ownerName',       state.ownerName);
+    // 見積区分表示
+    const catEl = document.getElementById('quoteCategoryDisplay');
+    if (catEl) catEl.textContent = state.quoteCategory || '―';
+    // 値引き額ラベル切り替え（工事を含む場合→出精値引き）
+    const discountLabelEl = document.getElementById('discountLabel');
+    if (discountLabelEl) {
+      const isKouji = (state.quoteCategory || '').includes('工事');
+      discountLabelEl.textContent = isKouji ? '出精値引き' : '値引き額';
+      console.log('[DEBUG] quoteCategory:', state.quoteCategory, '→', discountLabelEl.textContent);
+    } else {
+      console.warn('[DEBUG] discountLabel element not found');
+    }
     setValue('quoteSeqNo',      state.seqNo);
     setValue('quoteRevision',   state.revision);
     setValue('discountAmount',  state.discount || '');
@@ -1421,6 +1436,7 @@ const app = (() => {
       exclusions:      state.exclusions.length > 0 ? state.exclusions : undefined,
       remarks:         state.remarks || undefined,
       discount:        state.discount || undefined,
+      quoteCategory:   state.quoteCategory || '',
     };
   }
 
