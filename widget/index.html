@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>御見積書 PDF生成</title>
+  <!-- Zoho Embedded App SDK -->
+  <script src="https://live.zwidgets.com/js-sdk/1.0.5/ZohoEmbededAppSDK.min.js"></script>
+  <!-- PDFMake -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.min.js"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- ヘッダー -->
+    <header class="widget-header">
+      <div class="header-title">
+        <span class="company-name">ネポン</span>
+        <span class="header-label">御見積書 PDF生成</span>
+      </div>
+      <div class="quote-no-badge" id="quoteNoBadge">採番待ち</div>
+    </header>
+
+    <!-- タブナビゲーション -->
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="basic">① 基本情報</button>
+      <button class="tab-btn" data-tab="items">② 見積明細</button>
+      <button class="tab-btn" data-tab="output">③ PDF出力</button>
+    </nav>
+
+    <!-- ローディング -->
+    <div id="loadingOverlay" class="loading-overlay">
+      <div class="loading-spinner"></div>
+      <p>CRMデータ読み込み中...</p>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- タブ①: 基本情報                                               -->
+    <!-- ============================================================ -->
+    <div id="tab-basic" class="tab-content active">
+      <div class="form-section">
+        <h3 class="section-title">見積番号</h3>
+        <div class="form-row">
+          <label>見積番号</label>
+          <div class="quote-number-group">
+            <span class="prefix-badge">CQR</span>
+            <input type="number" id="quoteSeqNo" min="1" placeholder="連番" class="input-seq">
+            <span class="sep">－</span>
+            <input type="number" id="quoteRevision" min="1" max="99999" value="1" class="input-rev">
+            <span class="hint-small">（改訂番号）</span>
+          </div>
+          <button class="btn-auto" id="btnAutoNumber">🔢 自動採番</button>
+        </div>
+        <div class="form-row">
+          <label>見積日</label>
+          <input type="date" id="quoteDate" class="input-date">
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3 class="section-title">顧客・工事情報 <span class="crm-badge">CRMより取得</span></h3>
+        <div class="form-row">
+          <label>顧客名</label>
+          <input type="text" id="customerName" placeholder="株式会社〇〇" class="input-wide">
+          <span class="suffix">御中</span>
+        </div>
+        <div class="form-row">
+          <label>工事名</label>
+          <input type="text" id="projectName" placeholder="〇〇設備工事" class="input-wide">
+        </div>
+        <div class="form-row">
+          <label>担当者</label>
+          <input type="text" id="ownerName" placeholder="担当者名" class="input-medium">
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3 class="section-title">金額情報</h3>
+        <div class="form-row">
+          <label>貴社お渡し価格</label>
+          <div class="price-group">
+            <span class="currency-sign">¥</span>
+            <input type="number" id="deliveryPrice" placeholder="0" min="0" class="input-price">
+          </div>
+          <span class="hint-small">（合計からの割引後価格）</span>
+        </div>
+        <div class="form-row">
+          <label>労務費</label>
+          <div class="price-group">
+            <span class="currency-sign">¥</span>
+            <input type="number" id="laborCost" placeholder="自動計算" class="input-price">
+          </div>
+          <span class="hint-small">空欄時はお渡し価格×11.5%</span>
+        </div>
+        <div class="form-row">
+          <label>法定福利費率</label>
+          <div class="price-group">
+            <input type="number" id="legalWelfareRate" value="14.6" step="0.1" min="0" max="100" class="input-small">
+            <span class="currency-sign">%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3 class="section-title">取引条件</h3>
+        <div class="form-row">
+          <label>納期</label>
+          <div class="combo-group">
+            <input type="text" id="deliveryTerm" class="input-wide" placeholder="選択または入力">
+            <select class="combo-select" onchange="if(this.value){document.getElementById('deliveryTerm').value=this.value;this.selectedIndex=0;}">
+              <option value="">▼ 選択</option>
+              <option>お打ち合わせ願います</option>
+              <option>ご注文後1週間でお渡しできます</option>
+              <option>ご注文後2週間でお渡しできます</option>
+              <option>ご注文後3週間でお渡しできます</option>
+              <option>ご注文後1ヶ月でお渡しできます</option>
+              <option>ご注文後2ヶ月でお渡しできます</option>
+              <option>ご注文後3ヶ月でお渡しできます</option>
+              <option>ご注文後半年でお渡しできます</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>受渡し方法</label>
+          <div class="combo-group">
+            <input type="text" id="deliveryMethod" class="input-wide" placeholder="選択または入力">
+            <select class="combo-select" onchange="if(this.value){document.getElementById('deliveryMethod').value=this.value;this.selectedIndex=0;}">
+              <option value="">▼ 選択</option>
+              <option>お打ち合わせ願います</option>
+              <option>現場館側渡し</option>
+              <option>ご指定地車上渡し</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>支払い条件</label>
+          <div class="combo-group">
+            <input type="text" id="paymentTerm" class="input-wide" placeholder="選択または入力">
+            <select class="combo-select" onchange="if(this.value){document.getElementById('paymentTerm').value=this.value;this.selectedIndex=0;}">
+              <option value="">▼ 選択</option>
+              <option>お打ち合わせ願います</option>
+              <option>月末〆翌月現金支払い</option>
+              <option>月末〆の出来高払い（現金支払い）</option>
+              <option>契約時1/3、中間1/3、完成時1/3（現金払い）</option>
+              <option>月末〆翌月支払い（90日手形）</option>
+              <option>月末〆翌月支払い（120日手形）</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>見積有効期限</label>
+          <div class="combo-group">
+            <input type="text" id="validDays" class="input-wide" placeholder="選択または入力">
+            <select class="combo-select" onchange="if(this.value){document.getElementById('validDays').value=this.value;this.selectedIndex=0;}">
+              <option value="">▼ 選択</option>
+              <option>見積期限は60日限りです。期限後のご用命の節は一応ご照会願います。</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3 class="section-title">
+          見積外工事
+          <span id="exclusionCount" class="exclusion-count">0/15</span>
+          <button class="btn-excl-clear" onclick="document.querySelectorAll('.excl-check:checked').forEach(c=>{c.checked=false;app.onExclusionChange(c);});app.updateExclusionCount();">全解除</button>
+        </h3>
+        <p class="hint-small">チェックした項目が印刷レイアウトに掲載されます（最大15項目）。テキストは直接編集可能です。</p>
+        <div class="exclusion-list" id="exclusionList"></div>
+      </div>
+
+      <div class="form-section">
+        <h3 class="section-title">発行元（営業所）</h3>
+        <div class="form-row">
+          <label>営業所名</label>
+          <select id="branchSelect" class="input-medium" onchange="app.onBranchChange()">
+            <option value="honbu">営業サービス本部（厚木）</option>
+            <option value="other">その他（手入力）</option>
+          </select>
+        </div>
+        <div id="branchCustomInput" style="display:none">
+          <div class="form-row"><label>営業所名</label><input type="text" id="branchName" class="input-wide"></div>
+          <div class="form-row"><label>郵便番号</label><input type="text" id="branchPostal" placeholder="〒000-0000" class="input-medium"></div>
+          <div class="form-row"><label>住所</label><input type="text" id="branchAddress" class="input-wide"></div>
+          <div class="form-row"><label>TEL</label><input type="text" id="branchTel" class="input-medium"></div>
+          <div class="form-row"><label>FAX</label><input type="text" id="branchFax" class="input-medium"></div>
+        </div>
+      </div>
+
+      <div class="tab-footer">
+        <button class="btn-next" onclick="app.goToTab('items')">次へ: 見積明細 →</button>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- タブ②: 見積明細                                               -->
+    <!-- ============================================================ -->
+    <div id="tab-items" class="tab-content">
+
+      <div class="items-toolbar">
+        <button class="btn-primary" id="btnAddSection" onclick="app.addSection()">＋ 大項目を追加</button>
+        <div class="product-search-group">
+          <input type="text" id="productSearch" placeholder="商品名・型番で検索..." class="input-search"
+                 oninput="app.searchProducts(this.value)">
+          <div id="productDropdown" class="product-dropdown" style="display:none"></div>
+        </div>
+        <div class="grand-total-display">
+          明細合計: <strong id="grandTotalDisplay">¥0</strong>
+        </div>
+
+        <!-- 標準項セレクター -->
+        <div class="standard-toolbar">
+          <span class="standard-label">標準項</span>
+          <select id="standardModelSelect" class="input-standard">
+            <option value="">① 型式を選択...</option>
+          </select>
+          <span style="font-size:12px;color:#2e7d32;white-space:nowrap;flex-shrink:0;">② 追加先:</span>
+          <select id="standardTargetSection" class="input-standard" style="flex:0 0 auto;width:90px;">
+            <option value="last">最後</option>
+          </select>
+          <button class="btn-standard-add" id="btnStandardAdd" onclick="app.execStandardAdd()">③ 追加</button>
+          <span class="standard-hint" id="standardHint">（読み込み中）</span>
+        </div>
+      </div>
+
+      <div id="sectionsContainer" class="sections-container">
+        <!-- 動的セクション -->
+      </div>
+
+      <div id="noSectionsMsg" class="empty-state">
+        <p>「＋ 大項目を追加」からセクションを追加してください</p>
+        <button class="btn-primary" onclick="app.addSection()">＋ 大項目を追加</button>
+      </div>
+
+      <div class="tab-footer">
+        <button class="btn-back" onclick="app.goToTab('basic')">← 基本情報</button>
+        <button class="btn-next" onclick="app.goToTab('output')">次へ: PDF出力 →</button>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- タブ③: PDF出力                                                -->
+    <!-- ============================================================ -->
+    <div id="tab-output" class="tab-content">
+      <div class="output-layout">
+
+        <!-- サマリー -->
+        <div class="summary-card">
+          <h3>見積サマリー</h3>
+          <table class="summary-tbl">
+            <tr><td class="lbl">見積番号</td><td class="val" id="sum-quoteNo">-</td></tr>
+            <tr><td class="lbl">見積日</td><td class="val" id="sum-date">-</td></tr>
+            <tr><td class="lbl">顧客名</td><td class="val" id="sum-customer">-</td></tr>
+            <tr><td class="lbl">工事名</td><td class="val" id="sum-project">-</td></tr>
+            <tr><td class="lbl">セクション数</td><td class="val" id="sum-sections">0</td></tr>
+          </table>
+
+          <h4 class="breakdown-title">金額内訳</h4>
+          <table class="summary-tbl">
+            <tr><td class="lbl">明細合計（定価）</td><td class="val amount" id="sum-total">¥0</td></tr>
+            <tr class="row-delivery"><td class="lbl">貴社お渡し価格</td><td class="val amount" id="sum-delivery">¥0</td></tr>
+            <tr><td class="lbl">　1) 資材費他</td><td class="val amount" id="sum-material">¥0</td></tr>
+            <tr><td class="lbl">　2) 労務費</td><td class="val amount" id="sum-labor">¥0</td></tr>
+            <tr><td class="lbl" id="sum-welfare-label">　3) 法定福利費(14.6%)</td><td class="val amount" id="sum-welfare">¥0</td></tr>
+          </table>
+        </div>
+
+        <!-- アクション -->
+        <div class="action-card">
+          <div class="font-status" id="fontStatus">
+            <span class="status-icon">⏳</span> フォント読み込み中...
+          </div>
+
+          <button class="btn-generate" id="btnGeneratePDF" onclick="app.generatePDF()" disabled>
+            📄 PDF生成・ダウンロード
+          </button>
+
+          <div id="pdfStatus" class="pdf-status-msg"></div>
+
+          <div class="font-guide">
+            <details>
+              <summary>日本語フォントについて</summary>
+              <p>PDFの日本語表示には <code>NotoSansJP-Regular.ttf</code> が必要です。</p>
+              <p>自動ダウンロードを試みます。失敗した場合は手動で<br>
+              <code>widget/fonts/NotoSansJP-Regular.ttf</code> に配置してください。</p>
+              <p>フォント入手先: <a href="https://fonts.google.com/noto/specimen/Noto+Sans+JP" target="_blank">Google Fonts - Noto Sans JP</a></p>
+            </details>
+          </div>
+
+          <div class="save-section">
+            <hr>
+            <p class="hint-small">見積データをCRMに保存:</p>
+            <button class="btn-secondary" id="btnSaveToCRM" onclick="app.saveToCRM()">
+              💾 CRMに保存（見積明細JSON）
+            </button>
+            <div id="saveStatus" class="pdf-status-msg"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-footer">
+        <button class="btn-back" onclick="app.goToTab('items')">← 見積明細</button>
+      </div>
+    </div>
+
+  </div><!-- /#app -->
+
+  <!-- セクションテンプレート（非表示） -->
+  <template id="sectionTemplate">
+    <div class="section-block" data-section-id="">
+      <div class="section-header">
+        <div class="section-no-badge">No.<span class="section-no">1</span></div>
+        <input type="text" class="section-name-input" placeholder="大項目名（例: 温室内暖房設備工事）">
+        <div class="section-actions">
+          <button class="btn-icon" onclick="app.moveSectionUp(this)" title="上へ">▲</button>
+          <button class="btn-icon" onclick="app.moveSectionDown(this)" title="下へ">▼</button>
+          <button class="btn-icon btn-danger" onclick="app.removeSection(this)" title="削除">✕</button>
+        </div>
+      </div>
+
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th class="col-name">品名</th>
+            <th class="col-spec">型番・規格</th>
+            <th class="col-qty">数量</th>
+            <th class="col-unit">単位</th>
+            <th class="col-price">単価</th>
+            <th class="col-amount">金額</th>
+            <th class="col-houdan">歩単</th>
+            <th class="col-houkou-kubun">歩工区分</th>
+            <th class="col-houkou-goukei">歩工合計</th>
+            <th class="col-houkou">歩工</th>
+            <th class="col-actions"></th>
+          </tr>
+        </thead>
+        <tbody class="items-tbody">
+        </tbody>
+      </table>
+
+      <div class="section-footer">
+        <button class="btn-add-item" onclick="app.addItem(this)">＋ 行を追加</button>
+        <div class="section-subtotal">
+          小計: <strong class="subtotal-val">¥0</strong>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- 明細行テンプレート（非表示） -->
+  <template id="itemRowTemplate">
+    <tr class="item-row" data-item-id="" data-calc-category="">
+      <td><input type="text" class="item-name" placeholder="品名"><span class="calc-cat-badge" style="display:none"></span></td>
+      <td><input type="text" class="item-spec" placeholder="型番・規格"></td>
+      <td><input type="number" class="item-qty" value="1" min="0" step="any"></td>
+      <td>
+        <select class="item-unit">
+          <option value="式">式</option>
+          <option value="台">台</option>
+          <option value="本">本</option>
+          <option value="個">個</option>
+          <option value="m">m</option>
+          <option value="基">基</option>
+          <option value="セット">セット</option>
+        </select>
+      </td>
+      <td><input type="number" class="item-price" placeholder="（空欄可）" min="0"></td>
+      <td><input type="number" class="item-amount" placeholder="0" min="0"></td>
+      <td class="col-houdan"><span class="item-houdan"></span></td>
+      <td class="col-houkou-kubun"><span class="item-houkou-kubun"></span></td>
+      <td class="col-houkou-goukei"><input type="number" class="item-houkou-goukei" placeholder="-" min="0" step="any" title="手動入力で自動計算を上書き"></td>
+      <td class="col-houkou"><span class="item-houkou"></span></td>
+      <td>
+        <button class="btn-icon btn-danger" onclick="app.removeItem(this)" title="削除">✕</button>
+      </td>
+    </tr>
+  </template>
+
+  <script src="js/pdf-generator.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

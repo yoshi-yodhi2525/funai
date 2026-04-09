@@ -1,0 +1,14 @@
+{
+  "service": "CRM",
+  "name": "ネポン見積書PDF生成",
+  "namespace": "Nepon_Mitsumori",
+  "version": "1.0",
+  "sdkVersion": "1.0",
+  "widgetUrl": "index.html",
+  "modules": ["Quotes"],
+  "type": "Widget",
+  "location": "DetailView",
+  "displayName": "御見積書PDF生成",
+  "width": "1200",
+  "height": "800"
+}
