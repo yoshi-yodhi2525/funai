@@ -213,12 +213,34 @@
 
       <div class="items-toolbar">
         <button class="btn-primary" id="btnAddSection" onclick="app.addSection()">＋ 大項目を追加</button>
-        <div class="product-search-group">
-          <input type="text" id="productSearch" placeholder="商品名・型番で検索..." class="input-search"
-                 oninput="app.searchProducts(this.value)">
-          <div id="productDropdown" class="product-dropdown" style="display:none"></div>
-          <select id="productTargetSection" class="input-standard" style="flex:0 0 auto;width:90px;"></select>
-          <button class="btn-standard-add" id="btnProductAdd" onclick="app.execProductAdd()" disabled>追加</button>
+        <div class="material-search-row">
+          <!-- 商品 -->
+          <div class="product-search-group">
+            <span class="material-badge badge-product">商品</span>
+            <input type="text" id="productSearch" placeholder="商品名・型番で検索..." class="input-search"
+                   oninput="app.searchProducts(this.value)">
+            <div id="productDropdown" class="product-dropdown" style="display:none"></div>
+            <select id="productTargetSection" class="input-standard" style="flex:0 0 auto;width:80px;"></select>
+            <button class="btn-standard-add" id="btnProductAdd" onclick="app.execProductAdd()" disabled>追加</button>
+          </div>
+          <!-- 管材 -->
+          <div class="product-search-group">
+            <span class="material-badge badge-kanzai">管材</span>
+            <input type="text" id="kanzaiSearch" placeholder="管材名・型式で検索..." class="input-search"
+                   oninput="app.searchKanzai(this.value)">
+            <div id="kanzaiDropdown" class="product-dropdown" style="display:none"></div>
+            <select id="kanzaiTargetSection" class="input-standard" style="flex:0 0 auto;width:80px;"></select>
+            <button class="btn-standard-add" id="btnKanzaiAdd" onclick="app.execMaterialAdd('kanzai')" disabled>追加</button>
+          </div>
+          <!-- 電材 -->
+          <div class="product-search-group">
+            <span class="material-badge badge-denzai">電材</span>
+            <input type="text" id="denzaiSearch" placeholder="電材名・型式で検索..." class="input-search"
+                   oninput="app.searchDenzai(this.value)">
+            <div id="denzaiDropdown" class="product-dropdown" style="display:none"></div>
+            <select id="denzaiTargetSection" class="input-standard" style="flex:0 0 auto;width:80px;"></select>
+            <button class="btn-standard-add" id="btnDenzaiAdd" onclick="app.execMaterialAdd('denzai')" disabled>追加</button>
+          </div>
         </div>
         <div class="grand-total-display">
           明細合計: <strong id="grandTotalDisplay">¥0</strong>

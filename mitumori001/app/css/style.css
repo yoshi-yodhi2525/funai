@@ -424,9 +424,30 @@ button {
 }
 
 /* 商品検索 */
+.material-search-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .product-search-group {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
+
+.material-badge {
+  font-size: 11px;
+  font-weight: bold;
+  padding: 2px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.badge-product { background: #ddeeff; color: #1a4d8f; border: 1px solid #99bbdd; }
+.badge-kanzai  { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+.badge-denzai  { background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; }
 
 .input-search {
   width: 220px;

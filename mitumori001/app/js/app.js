@@ -275,6 +275,10 @@ const app = (() => {
     nextItemId:    1,
     products:       [],       // 商品マスタ（Zoho Products から取得）
     koujihi:        [],       // 工事費マスタ（CustomModule1 から取得）
+    kanzai:         [],       // 管材マスタ（CustomModule18 から取得）
+    denzai:         [],       // 電材マスタ（CustomModule19 から取得）
+    pendingKanzai:  null,     // 管材選択済み・追加待ち
+    pendingDenzai:  null,     // 電材選択済み・追加待ち
     searchResults:  [],       // 直近の検索結果（クリック時に参照）
     pendingProduct:  null,     // 検索で選択済み・追加待ちの商品
     savedJson:       null,     // CRM に保存済みの見積JSON
@@ -300,7 +304,10 @@ const app = (() => {
 
     document.addEventListener('click', e => {
       if (!e.target.closest('.product-search-group')) {
-        document.getElementById('productDropdown').style.display = 'none';
+        ['productDropdown', 'kanzaiDropdown', 'denzaiDropdown'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = 'none';
+        });
       }
     });
 
@@ -416,6 +423,8 @@ const app = (() => {
     // 商品マスタ・工事費マスタを取得
     loadProducts();
     loadKoujihi();
+    loadKanzai();
+    loadDenzai();
 
     showToast('CRMデータを読み込みました');
   }
@@ -622,6 +631,52 @@ const app = (() => {
     }
   }
 
+  // ── 管材マスタ（CustomModule18）────────────────────────────────
+
+  async function loadKanzai() {
+    if (!zohoReady) return;
+    try {
+      const data = await fetchAllRecords('CustomModule18', 'Name');
+      state.kanzai = data.map(r => ({
+        id:     r.id,
+        name:   r.Name    || '',
+        model:  r.field2  || '',   // 型式
+        unit:   r.field   || '個', // 単位
+        price:  Number(r.field1) || 0,  // 価格
+        cost:   Number(r.field3) || 0,  // 原価
+        houdan: parseFloat(r.field4) || 0, // 歩単
+        code:   r.field5  || '',   // 品番
+        source: 'kanzai',
+      }));
+      console.log(`管材マスタ ${state.kanzai.length} 件読み込み`);
+    } catch (e) {
+      console.warn('管材マスタ取得失敗:', e);
+    }
+  }
+
+  // ── 電材マスタ（CustomModule19）────────────────────────────────
+
+  async function loadDenzai() {
+    if (!zohoReady) return;
+    try {
+      const data = await fetchAllRecords('CustomModule19', 'Name');
+      state.denzai = data.map(r => ({
+        id:     r.id,
+        name:   r.Name    || '',
+        model:  r.field1  || '',   // 型式
+        unit:   r.field3  || '個', // 単位
+        price:  Number(r.field) || 0,   // 価格
+        cost:   Number(r.field2) || 0,  // 原価
+        houdan: parseFloat(r.field4) || 0, // 歩単
+        note:   r.field5  || '',   // 備考
+        source: 'denzai',
+      }));
+      console.log(`電材マスタ ${state.denzai.length} 件読み込み`);
+    } catch (e) {
+      console.warn('電材マスタ取得失敗:', e);
+    }
+  }
+
   /** 全角→半角正規化（英数字・記号・スペース除去） */
   function normalize(s) {
     return String(s || '')
@@ -782,7 +837,7 @@ const app = (() => {
 
   /** 追加先セクションセレクトを更新（セクション追加・削除時に呼ぶ） */
   function updateTargetSectionSelect() {
-    ['standardTargetSection', 'productTargetSection'].forEach(id => {
+    ['standardTargetSection', 'productTargetSection', 'kanzaiTargetSection', 'denzaiTargetSection'].forEach(id => {
       const sel = document.getElementById(id);
       if (!sel) return;
       const cur = sel.value;
@@ -884,6 +939,116 @@ const app = (() => {
     const searchInput = document.getElementById('productSearch');
     if (searchInput) searchInput.value = '';
     const btn = document.getElementById('btnProductAdd');
+    if (btn) { btn.disabled = true; btn.classList.remove('active'); }
+
+    renderSections();
+    updateOutput();
+  }
+
+  // ── 管材・電材 検索・追加 ─────────────────────────────────────
+
+  function buildMaterialDropdown(items, ddEl, query) {
+    if (!query || query.length < 1) { ddEl.style.display = 'none'; return []; }
+    const q = normalize(query);
+    const filtered = items.filter(r =>
+      normalize(r.name).includes(q) ||
+      normalize(r.model).includes(q) ||
+      normalize(r.code || '').includes(q)
+    ).slice(0, 25);
+
+    if (filtered.length === 0) { ddEl.style.display = 'none'; return []; }
+
+    ddEl.innerHTML = filtered.map((item, idx) => `
+      <div class="product-item" data-idx="${idx}">
+        <div style="flex:1;min-width:0">
+          <div class="p-name">${escHtml(item.name)}</div>
+          <div class="p-code">${escHtml(item.model || '')}${item.code ? ' / ' + escHtml(item.code) : ''}</div>
+        </div>
+        <div class="p-price">¥${item.price.toLocaleString('ja-JP')}</div>
+      </div>`).join('');
+    ddEl.style.display = 'block';
+    return filtered;
+  }
+
+  function searchKanzai(query) {
+    const dd = document.getElementById('kanzaiDropdown');
+    state._kanzaiResults = buildMaterialDropdown(state.kanzai, dd, query);
+    dd.querySelectorAll('.product-item').forEach(el => {
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        const item = state._kanzaiResults[Number(el.dataset.idx)];
+        if (!item) return;
+        state.pendingKanzai = item;
+        document.getElementById('kanzaiSearch').value = item.name;
+        const btn = document.getElementById('btnKanzaiAdd');
+        if (btn) { btn.disabled = false; btn.classList.add('active'); }
+        dd.style.display = 'none';
+      });
+    });
+  }
+
+  function searchDenzai(query) {
+    const dd = document.getElementById('denzaiDropdown');
+    state._denzaiResults = buildMaterialDropdown(state.denzai, dd, query);
+    dd.querySelectorAll('.product-item').forEach(el => {
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        const item = state._denzaiResults[Number(el.dataset.idx)];
+        if (!item) return;
+        state.pendingDenzai = item;
+        document.getElementById('denzaiSearch').value = item.name;
+        const btn = document.getElementById('btnDenzaiAdd');
+        if (btn) { btn.disabled = false; btn.classList.add('active'); }
+        dd.style.display = 'none';
+      });
+    });
+  }
+
+  function addMaterialItem(section, m) {
+    const item = createItem();
+    item.name      = m.name;
+    item.spec      = m.model || m.code || '';
+    item.unit      = m.unit  || '個';
+    item.unitPrice = m.price || 0;
+    item.amount    = (m.price || 0) * (item.qty || 1);
+    item.genka     = m.cost  || 0;
+    item.houdan    = m.houdan || 0;
+    section.items.push(item);
+  }
+
+  function execMaterialAdd(type) {
+    const isKanzai = type === 'kanzai';
+    const pending  = isKanzai ? state.pendingKanzai : state.pendingDenzai;
+    const searchId = isKanzai ? 'kanzaiSearch' : 'denzaiSearch';
+    const btnId    = isKanzai ? 'btnKanzaiAdd' : 'btnDenzaiAdd';
+    const targetId = isKanzai ? 'kanzaiTargetSection' : 'denzaiTargetSection';
+
+    if (!pending) { showToast('アイテムを検索して選択してください', 'warn'); return; }
+    if (state.sections.length === 0) addSection();
+
+    const targetVal = (document.getElementById(targetId) || {}).value || 'last';
+    let targetSection;
+    if (targetVal === 'last') {
+      targetSection = state.sections[state.sections.length - 1];
+    } else {
+      const id = Number(targetVal);
+      targetSection = state.sections.find(s => s.id === id) || state.sections[state.sections.length - 1];
+    }
+
+    const lastItem = targetSection.items[targetSection.items.length - 1];
+    if (lastItem && !lastItem.name && !lastItem.spec && !lastItem.unitPrice && !lastItem.amount) {
+      targetSection.items.pop();
+    }
+
+    addMaterialItem(targetSection, pending);
+    showToast(`No.${targetSection.no} に ${pending.name} を追加しました`);
+
+    if (isKanzai) state.pendingKanzai = null;
+    else          state.pendingDenzai = null;
+
+    const searchEl = document.getElementById(searchId);
+    if (searchEl) searchEl.value = '';
+    const btn = document.getElementById(btnId);
     if (btn) { btn.disabled = true; btn.classList.remove('active'); }
 
     renderSections();
@@ -1692,6 +1857,10 @@ const app = (() => {
     // 商品検索
     searchProducts,
     selectProduct,
+    // 管材・電材検索
+    searchKanzai,
+    searchDenzai,
+    execMaterialAdd,
     // 採番
     autoNumber,
     // 営業所
