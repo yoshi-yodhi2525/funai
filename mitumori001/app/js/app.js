@@ -205,6 +205,7 @@ const app = (() => {
     return totalReducedHoukou;
   }
 
+  /** カテゴリ名からカテゴリを逆引き */
   function findSectionCategory(name) {
     for (const cat of SECTION_CATEGORIES) {
       if (cat.items.includes(name)) return cat.label;
@@ -212,8 +213,9 @@ const app = (() => {
     return '';
   }
 
+  /** カテゴリ選択セレクトの選択肢を構築 */
   function buildCategorySelect(catSel) {
-    catSel.innerHTML = '<option value="">― カテゴリ選択 ―</option>';
+    catSel.innerHTML = '<option value="">― カテゴリ ―</option>';
     SECTION_CATEGORIES.forEach(cat => {
       const opt = document.createElement('option');
       opt.value = cat.label;
@@ -222,25 +224,29 @@ const app = (() => {
     });
   }
 
-  function updateSectionNameOptions(catSel, nameSel, currentName) {
-    nameSel.innerHTML = '<option value="">― 大項目名選択 ―</option>';
+  /**
+   * カテゴリに応じた datalist を生成し input の list 属性に紐づける
+   * カテゴリ未選択時は全件表示
+   */
+  function updateNameDatalist(catSel, nameInput) {
+    // 既存の一時 datalist を削除
+    const oldId = nameInput.getAttribute('list');
+    if (oldId) {
+      const old = document.getElementById(oldId);
+      if (old) old.remove();
+    }
+    const dlId = 'dl-sec-' + Date.now();
+    const dl = document.createElement('datalist');
+    dl.id = dlId;
     const cat = SECTION_CATEGORIES.find(c => c.label === catSel.value);
-    if (cat) {
-      cat.items.forEach(item => {
-        const opt = document.createElement('option');
-        opt.value = item;
-        opt.textContent = item;
-        nameSel.appendChild(opt);
-      });
-    }
-    // リストにない名前も選択肢として保持
-    if (currentName && ![...nameSel.options].some(o => o.value === currentName)) {
+    const items = cat ? cat.items : SECTION_CATEGORIES.flatMap(c => c.items);
+    items.forEach(name => {
       const opt = document.createElement('option');
-      opt.value = currentName;
-      opt.textContent = currentName;
-      nameSel.appendChild(opt);
-    }
-    if (currentName) nameSel.value = currentName;
+      opt.value = name;
+      dl.appendChild(opt);
+    });
+    document.body.appendChild(dl);
+    nameInput.setAttribute('list', dlId);
   }
 
   let state = {
@@ -1112,15 +1118,16 @@ const app = (() => {
       }
       // 番号とタイトル更新
       block.querySelector('.section-no').textContent = sec.no;
-      const catSel  = block.querySelector('.section-cat-select');
-      const nameSel = block.querySelector('.section-name-select');
-      if (catSel && nameSel && catSel !== document.activeElement && nameSel !== document.activeElement) {
+      const catSel   = block.querySelector('.section-cat-select');
+      const nameInput = block.querySelector('.section-name-input');
+      if (catSel && catSel !== document.activeElement && nameInput !== document.activeElement) {
         const catLabel = findSectionCategory(sec.name);
         if (catSel.value !== catLabel) {
           catSel.value = catLabel;
-          updateSectionNameOptions(catSel, nameSel, sec.name);
-        } else if (nameSel.value !== sec.name) {
-          updateSectionNameOptions(catSel, nameSel, sec.name);
+          updateNameDatalist(catSel, nameInput);
+        }
+        if (nameInput.value !== (sec.name || '')) {
+          nameInput.value = sec.name || '';
         }
       }
 
@@ -1142,23 +1149,30 @@ const app = (() => {
     const block = clone.querySelector('.section-block');
     block.dataset.sectionId = sec.id;
 
-    const catSel  = block.querySelector('.section-cat-select');
-    const nameSel = block.querySelector('.section-name-select');
+    const catSel    = block.querySelector('.section-cat-select');
+    const nameInput = block.querySelector('.section-name-input');
 
     // カテゴリ選択肢を構築
     buildCategorySelect(catSel);
 
-    // カテゴリ変更 → 大項目名の選択肢を更新
+    // 初期 datalist（全件）
+    updateNameDatalist(catSel, nameInput);
+
+    // カテゴリ変更 → datalist を絞り込み
     catSel.addEventListener('change', () => {
-      updateSectionNameOptions(catSel, nameSel, '');
+      updateNameDatalist(catSel, nameInput);
+      // カテゴリが変わったら名前もリセット
       const s = state.sections.find(s => s.id === sec.id);
-      if (s) s.name = '';
+      if (s && !SECTION_CATEGORIES.find(c => c.label === catSel.value)?.items.includes(s.name)) {
+        nameInput.value = '';
+        s.name = '';
+      }
     });
 
-    // 大項目名変更 → 状態更新
-    nameSel.addEventListener('change', () => {
+    // 大項目名入力 → state 更新
+    nameInput.addEventListener('input', () => {
       const s = state.sections.find(s => s.id === sec.id);
-      if (s) s.name = nameSel.value;
+      if (s) s.name = nameInput.value;
     });
 
     return block;

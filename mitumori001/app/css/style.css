@@ -509,7 +509,7 @@ button {
   flex-shrink: 0;
   width: 130px;
 }
-.section-name-select {
+.section-name-input {
   flex: 1;
   border: 1px solid #aac;
   border-radius: 4px;

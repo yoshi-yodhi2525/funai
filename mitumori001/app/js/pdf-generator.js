@@ -123,6 +123,7 @@ const QuotationPDF = (() => {
       return { ...s, subtotal };
     });
     const grandTotal    = sectionTotals.reduce((sum, s) => sum + s.subtotal, 0);
+    const discount      = Number(data.discount) || 0;
     const deliveryPrice = Number(data.deliveryPrice) || grandTotal;
     const legalRate     = (Number(data.legalWelfareRate) || 14.6) / 100;
     const laborCost     = Number(data.laborCost) || Math.round(deliveryPrice * 0.115);
@@ -182,7 +183,7 @@ const QuotationPDF = (() => {
         // ====================================================
         ...buildCoverPage({
           quoteNoStr, dateStr, branch,
-          data, sectionTotals, grandTotal,
+          data, sectionTotals, grandTotal, discount,
           deliveryPrice, materialCost, laborCost, legalWelfare, legalRate,
         }),
         { text: '', pageBreak: 'after' },
@@ -198,7 +199,7 @@ const QuotationPDF = (() => {
   // ── 1ページ目（表紙）────────────────────────────────────────
 
   function buildCoverPage({ quoteNoStr, dateStr, branch, data, sectionTotals,
-    grandTotal, deliveryPrice, materialCost, laborCost, legalWelfare, legalRate }) {
+    grandTotal, discount, deliveryPrice, materialCost, laborCost, legalWelfare, legalRate }) {
 
     const COL_WIDTHS = [22, '*', 36, 30, 58, 58];   // No|項目|数量|単位|単価|金額
 
@@ -246,6 +247,14 @@ const QuotationPDF = (() => {
       { text: '合　　計', alignment: 'center', bold: true, colSpan: 4, border: [false, true, false, false] },
       {}, {}, {},
       { text: fmt(grandTotal), alignment: 'right', border: [false, true, true, false] },
+    ]);
+
+    // 値引き額（0の場合も表示）
+    tableRows.push([
+      { text: '', border: [true, false, false, false] },
+      { text: '値 引 き 額', alignment: 'center', colSpan: 4, border: [false, false, false, false] },
+      {}, {}, {},
+      { text: discount > 0 ? '▲ ' + fmt(discount) : fmt(0), alignment: 'right', border: [false, false, true, false] },
     ]);
 
     // お渡し価格
@@ -543,12 +552,7 @@ const QuotationPDF = (() => {
       (section.items || []).forEach(item => {
         rows.push([
           { text: '' },
-          {
-            columns: [
-              { width: '*',  text: item.name || '' },
-              { width: 'auto', text: item.spec || '', color: '#444', margin: [4, 0, 0, 0] },
-            ],
-          },
+          { text: item.name || '' },
           { text: item.qty != null && item.qty !== '' ? String(item.qty) : '', alignment: 'right' },
           { text: item.unit || '', alignment: 'center' },
           { text: item.unitPrice ? fmt(item.unitPrice) : '', alignment: 'right' },
