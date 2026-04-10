@@ -480,6 +480,83 @@ const app = (() => {
   // ── 見積外工事 ────────────────────────────────────────────────
 
   /** チェックリストUIを構築（init時に1回呼ぶ） */
+  // ── 見積外工事 プリセット ────────────────────────────────────
+
+  const EXCLUSION_PRESETS = {
+    mizukei: [
+      'ポイラ室建屋工事',
+      'ポイラ室の給排水・給排気設備工事',
+      'ポイラ付近までの給排水工事',
+      '防油堤及びタンク基礎工事',
+      '機器関係の基礎工事',
+      '埋設配管用掘削・埋め戻し工事',
+      '各機器の電源制御線・制御盤取付工事',
+      '廃棄物処理費用',
+      '作業用電気使用料',
+      '試運転用燃料・水・電気使用料',
+      '見積記載以外の機器・設備工事',
+    ],
+    fuukei: [
+      '防油堤及びタンク基礎工事',
+      '機器関係の基礎工事',
+      '各機器の制御配線工事',
+      '各機器の電源・制御線・制御盤取付工事',
+      '温風ポリダクト敷設工事',
+      '廃棄物処理費用',
+      '作業用電気使用料',
+      '躯体の孔明け補修工事',
+      '試運転用燃料・電気使用料',
+      '消防申請関連の一切',
+      '見積記載以外の機器・設備工事',
+      '消費税及び地方税',
+    ],
+  };
+
+  /**
+   * プリセットを適用する
+   * @param {'mizukei'|'fuukei'|'general'} preset
+   */
+  function applyExclusionPreset(preset) {
+    // 全チェック解除
+    document.querySelectorAll('.excl-check:checked').forEach(c => {
+      c.checked = false;
+      const editEl = document.querySelector(`.excl-edit[data-index="${c.dataset.index}"]`);
+      if (editEl) editEl.style.display = 'none';
+    });
+
+    if (preset === 'general') {
+      // 一般: 全解除のまま（全項目から自由選択）
+      updateExclusionCount();
+      showToast('全項目から選択できます');
+      return;
+    }
+
+    const targets = EXCLUSION_PRESETS[preset] || [];
+
+    // EXCLUSION_MASTERの各項目を前方一致またはユニコード正規化で照合
+    targets.forEach(target => {
+      const normTarget = target.replace(/[ﾎﾞ]/g, '').toLowerCase();
+      const idx = EXCLUSION_MASTER.findIndex(m => {
+        const normM = m.replace(/[ﾎﾞ]/g, '').toLowerCase();
+        return normM === normTarget ||
+               m.includes(target.slice(0, 6)) ||
+               target.includes(m.slice(0, 6));
+      });
+      if (idx !== -1) {
+        const cb = document.querySelector(`.excl-check[data-index="${idx}"]`);
+        if (cb && !cb.checked) {
+          cb.checked = true;
+          const editEl = document.querySelector(`.excl-edit[data-index="${idx}"]`);
+          if (editEl) editEl.style.display = 'block';
+        }
+      }
+    });
+
+    updateExclusionCount();
+    const label = preset === 'mizukei' ? '水系1軍' : '風系1軍';
+    showToast(`${label} のプリセットを適用しました`);
+  }
+
   function buildExclusionUI() {
     const container = document.getElementById('exclusionList');
     if (!container) return;
@@ -1397,6 +1474,14 @@ const app = (() => {
       // data属性にも保持（保存・読み込み時に利用）
       row.dataset.calcCategory = item.calcCategory || '';
 
+      // 原価・原価合計の反映
+      const genkaEl       = row.querySelector('.item-genka');
+      const genkaAmtEl    = row.querySelector('.item-genka-amount');
+      const genka    = Number(item.genka) || 0;
+      const genkaAmt = genka * (Number(item.qty) || 1);
+      if (genkaEl)    genkaEl.textContent    = genka    ? genka.toLocaleString('ja-JP')    : '';
+      if (genkaAmtEl) genkaAmtEl.textContent = genkaAmt ? genkaAmt.toLocaleString('ja-JP') : '';
+
       // 歩単・歩工区分・歩工合計・歩工（計算）の反映
       const houdanEl      = row.querySelector('.item-houdan');
       const kubunEl       = row.querySelector('.item-houkou-kubun');
@@ -1770,11 +1855,99 @@ const app = (() => {
     document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
 
     if (tabName === 'output') updateOutput();
+    if (tabName === 'summary') renderSummaryTable();
   }
 
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => goToTab(btn.dataset.tab));
   });
+
+  // ── 見積まとめ（集計表）─────────────────────────────────────────
+
+  const SUMMARY_CATEGORIES = {
+    '①': '①配管部材',
+    '②': '②支持具・雑部材',
+    '③': '③配線部材',
+    '④': '④工事費',
+  };
+  const SUMMARY_ORDER = ['①', '②', '③', '④'];
+
+  function renderSummaryTable() {
+    const container = document.getElementById('summaryTableContainer');
+    if (!container) return;
+
+    if (state.sections.length === 0) {
+      container.innerHTML = '<p style="color:#888;padding:16px;">明細データがありません。②見積明細でデータを入力してください。</p>';
+      return;
+    }
+
+    let grandTotal = 0;
+    let html = '';
+
+    state.sections.forEach(sec => {
+      const catTotals = {};
+      const normalItems = [];
+
+      (sec.items || []).forEach(item => {
+        const prefix = (item.calcCategory || '').trim().charAt(0);
+        if (SUMMARY_CATEGORIES[prefix]) {
+          catTotals[prefix] = (catTotals[prefix] || 0) + (Number(item.amount) || 0);
+        } else {
+          normalItems.push(item);
+        }
+      });
+
+      const secTotal = (sec.items || []).reduce((s, i) => s + (Number(i.amount) || 0), 0);
+      grandTotal += secTotal;
+
+      html += `<div class="summary-section-block">
+        <div class="summary-section-header">No.${sec.no}　${escHtml(sec.name || '')}</div>
+        <table class="summary-detail-table">
+          <thead><tr><th>項目</th><th>数量</th><th>単位</th><th>単価</th><th>金額</th></tr></thead>
+          <tbody>`;
+
+      normalItems.forEach(item => {
+        html += `<tr>
+          <td>${escHtml(item.name || '')}</td>
+          <td class="num">${item.qty || 1}</td>
+          <td class="center">${escHtml(item.unit || '式')}</td>
+          <td class="num">${item.unitPrice ? Number(item.unitPrice).toLocaleString('ja-JP') : ''}</td>
+          <td class="num">${(Number(item.amount) || 0).toLocaleString('ja-JP')}</td>
+        </tr>`;
+      });
+
+      SUMMARY_ORDER.forEach(prefix => {
+        const amount = catTotals[prefix];
+        if (!amount) return;
+        html += `<tr class="summary-cat-row">
+          <td>${escHtml(SUMMARY_CATEGORIES[prefix])}</td>
+          <td class="num">1</td>
+          <td class="center">式</td>
+          <td class="num"></td>
+          <td class="num">${amount.toLocaleString('ja-JP')}</td>
+        </tr>`;
+      });
+
+      html += `</tbody>
+          <tfoot><tr class="summary-subtotal">
+            <td colspan="4" class="center">小　計</td>
+            <td class="num">${secTotal.toLocaleString('ja-JP')}</td>
+          </tr></tfoot>
+        </table>
+      </div>`;
+    });
+
+    html += `<div class="summary-grand-total">
+      合　計　<span>¥${grandTotal.toLocaleString('ja-JP')}</span>
+    </div>`;
+
+    container.innerHTML = html;
+  }
+
+  function generateSummaryPDF() {
+    const data = buildPdfData();
+    QuotationPDF.downloadSummary(data);
+  }
 
   // ── 営業所切り替え ────────────────────────────────────────────
 
@@ -1871,8 +2044,10 @@ const app = (() => {
     // 見積外工事
     onExclusionChange,
     updateExclusionCount,
+    applyExclusionPreset,
     // PDF
     generatePDF,
+    generateSummaryPDF,
     // 貴社お渡し価格リセット
     resetDeliveryPrice: () => {
       const el = document.getElementById('deliveryPrice');

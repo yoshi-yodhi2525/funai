@@ -551,7 +551,7 @@ const QuotationPDF = (() => {
         {}, {}, {}, {},
       ]);
 
-      // 明細行
+      // 明細行（個別、変更なし）
       (section.items || []).forEach(item => {
         rows.push([
           { text: '' },
@@ -659,6 +659,132 @@ const QuotationPDF = (() => {
     return result;
   }
 
+  // ── 集計表PDF ─────────────────────────────────────────────────
+
+  const CALC_CATEGORY_LABELS = {
+    '①': '①配管部材',
+    '②': '②支持具・雑部材',
+    '③': '③配線部材',
+    '④': '④工事費',
+  };
+  const CALC_CATEGORY_ORDER = ['①', '②', '③', '④'];
+
+  function buildSummaryDocDefinition(data) {
+    const font      = fontLoaded ? 'NotoSansJP' : 'Roboto';
+    const dateStr   = toJpDate(data.date || new Date());
+    const quoteNoStr = `CQR${data.seqNo}-${String(data.revision || 1).padStart(5, '0')}`;
+    const sections  = data.sections || [];
+
+    // セクション別・カテゴリ別集計
+    const sectionRows = sections.map(sec => {
+      const catTotals = {};
+      const noCategory = [];
+
+      (sec.items || []).forEach(item => {
+        const prefix = (item.calcCategory || '').trim().charAt(0);
+        if (CALC_CATEGORY_LABELS[prefix]) {
+          if (!catTotals[prefix]) catTotals[prefix] = 0;
+          catTotals[prefix] += Number(item.amount) || 0;
+        } else {
+          noCategory.push(item);
+        }
+      });
+
+      return { sec, catTotals, noCategory };
+    });
+
+    // テーブル行を組み立て
+    const tableRows = [[
+      { text: 'No.', style: 'tableHeader', alignment: 'center' },
+      { text: '項　　　目', style: 'tableHeader' },
+      { text: '数量', style: 'tableHeader', alignment: 'center' },
+      { text: '単位', style: 'tableHeader', alignment: 'center' },
+      { text: '単　価', style: 'tableHeader', alignment: 'center' },
+      { text: '金　　額', style: 'tableHeader', alignment: 'center' },
+    ]];
+
+    sectionRows.forEach(({ sec, catTotals, noCategory }) => {
+      // セクションヘッダー
+      tableRows.push([
+        { text: String(sec.no || ''), alignment: 'center', bold: true, fillColor: '#e8edf5' },
+        { text: `※${sec.name || ''}`, bold: true, colSpan: 5, fillColor: '#e8edf5' },
+        {}, {}, {}, {},
+      ]);
+
+      // カテゴリなし → 個別行
+      noCategory.forEach(item => {
+        tableRows.push([
+          { text: '' },
+          { text: item.name || '' },
+          { text: item.qty != null ? String(item.qty) : '1', alignment: 'right' },
+          { text: item.unit || '式', alignment: 'center' },
+          { text: item.unitPrice ? fmt(item.unitPrice) : '', alignment: 'right' },
+          { text: fmt(item.amount), alignment: 'right' },
+        ]);
+      });
+
+      // カテゴリあり → 集計行
+      CALC_CATEGORY_ORDER.forEach(prefix => {
+        const amount = catTotals[prefix];
+        if (!amount) return;
+        tableRows.push([
+          { text: '' },
+          { text: CALC_CATEGORY_LABELS[prefix] },
+          { text: '1', alignment: 'right' },
+          { text: '式', alignment: 'center' },
+          { text: '', alignment: 'right' },
+          { text: fmt(amount), alignment: 'right' },
+        ]);
+      });
+
+      // セクション小計
+      const subtotal = (sec.items || []).reduce((s, i) => s + (Number(i.amount) || 0), 0);
+      tableRows.push([
+        { text: '', border: [true, true, true, true], fillColor: '#f5f5f5' },
+        { text: '─ 小 計 ─', alignment: 'center', bold: true, colSpan: 4, border: [true, true, true, true], fillColor: '#f5f5f5' },
+        {}, {}, {},
+        { text: fmt(subtotal), alignment: 'right', bold: true, border: [true, true, true, true], fillColor: '#f5f5f5' },
+      ]);
+    });
+
+    // 全体合計
+    const grandTotal = sections.reduce((s, sec) =>
+      s + (sec.items || []).reduce((ss, i) => ss + (Number(i.amount) || 0), 0), 0);
+    tableRows.push([
+      { text: '', border: [true, true, false, false] },
+      { text: '合　　計', alignment: 'center', bold: true, colSpan: 4, border: [false, true, false, false] },
+      {}, {}, {},
+      { text: fmt(grandTotal), alignment: 'right', bold: true, border: [false, true, true, false] },
+    ]);
+
+    return {
+      pageSize: 'A4',
+      pageMargins: [30, 40, 30, 40],
+      defaultStyle: { font, fontSize: 9 },
+      styles: {
+        tableHeader: { bold: true, fontSize: 9, fillColor: '#1a4d8f', color: '#ffffff', alignment: 'center' },
+        sectionHdr:  { bold: true, fontSize: 9, fillColor: '#e8edf5' },
+      },
+      content: [
+        { text: '見積集計表', style: { fontSize: 14, bold: true }, margin: [0, 0, 0, 4] },
+        { text: `${quoteNoStr}　${data.customerName || ''}　${data.projectName || ''}　${dateStr}`, fontSize: 9, margin: [0, 0, 0, 8] },
+        {
+          table: {
+            headerRows: 1,
+            widths: [22, '*', 36, 30, 58, 58],
+            body: tableRows,
+          },
+          layout: {
+            hLineWidth: () => 0.5,
+            vLineWidth: () => 0.5,
+            hLineColor: () => '#aaaaaa',
+            vLineColor: () => '#aaaaaa',
+          },
+        },
+      ],
+    };
+  }
+
   // ── 公開API ───────────────────────────────────────────────────
 
   return {
@@ -703,6 +829,17 @@ const QuotationPDF = (() => {
           reject(e);
         }
       });
+    },
+
+    /**
+     * 集計表PDFをダウンロード
+     * @param {Object} data - 見積データ
+     */
+    downloadSummary(data) {
+      const docDef  = buildSummaryDocDefinition(data);
+      const quoteNo = `CQR${data.seqNo}-${String(data.revision || 1).padStart(5, '0')}`;
+      const fname   = `見積集計表_${quoteNo}_${data.customerName || ''}.pdf`;
+      pdfMake.createPdf(docDef).download(fname);
     },
 
     get fontLoaded() { return fontLoaded; },

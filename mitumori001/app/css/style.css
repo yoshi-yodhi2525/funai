@@ -1041,3 +1041,71 @@ button {
   line-height: 1.4;
 }
 .btn-move:hover { background: #c5d8fb; }
+
+/* ── 見積まとめタブ ─────────────────────────────────────────── */
+.summary-tab-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #f5f7fa;
+  border-bottom: 1px solid #ddd;
+}
+.summary-tab-hint { font-size: 12px; color: #666; }
+.summary-tab-container { padding: 12px 16px; overflow-y: auto; max-height: calc(100vh - 180px); }
+.summary-section-block { margin-bottom: 16px; border: 1px solid #c5d0e0; border-radius: 6px; overflow: hidden; }
+.summary-section-header {
+  background: #1a4d8f;
+  color: #fff;
+  font-weight: bold;
+  font-size: 13px;
+  padding: 6px 12px;
+}
+.summary-detail-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.summary-detail-table th {
+  background: #e8edf5;
+  padding: 4px 8px;
+  text-align: center;
+  border-bottom: 1px solid #ccc;
+}
+.summary-detail-table td { padding: 4px 8px; border-bottom: 1px solid #eee; }
+.summary-detail-table td.num { text-align: right; }
+.summary-detail-table td.center { text-align: center; }
+.summary-cat-row td { background: #f0f8f0; font-weight: bold; color: #2e7d32; }
+.summary-subtotal td { background: #f5f5f5; font-weight: bold; border-top: 1px solid #bbb; }
+.summary-grand-total {
+  text-align: right;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 12px 16px;
+  color: #1a4d8f;
+  border-top: 2px solid #1a4d8f;
+}
+.summary-grand-total span { font-size: 20px; }
+
+/* ── 見積外工事 プリセットバー ──────────────────────────────── */
+.exclusion-preset-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.exclusion-preset-label { font-size: 12px; color: #555; }
+.btn-excl-preset {
+  font-size: 12px;
+  padding: 3px 12px;
+  border: 1px solid #1a4d8f;
+  border-radius: 12px;
+  background: #eef3fb;
+  color: #1a4d8f;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-excl-preset:hover { background: #1a4d8f; color: #fff; }
+
+/* ── 原価列 ─────────────────────────────────────────────────── */
+.col-genka, .col-genka-amount { white-space: nowrap; text-align: right; }
+.col-genka { width: 60px; color: #888; font-size: 11px; }
+.col-genka-amount { width: 70px; color: #888; font-size: 11px; }
+.item-genka, .item-genka-amount { color: #999; font-size: 11px; }

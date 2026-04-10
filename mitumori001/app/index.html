@@ -28,6 +28,7 @@
       <button class="tab-btn active" data-tab="basic">① 基本情報</button>
       <button class="tab-btn" data-tab="items">② 見積明細</button>
       <button class="tab-btn" data-tab="output">③ PDF出力</button>
+      <button class="tab-btn" data-tab="summary">④ 見積まとめ</button>
     </nav>
 
     <!-- ローディング -->
@@ -180,6 +181,12 @@
           <button class="btn-excl-clear" onclick="document.querySelectorAll('.excl-check:checked').forEach(c=>{c.checked=false;app.onExclusionChange(c);});app.updateExclusionCount();">全解除</button>
         </h3>
         <p class="hint-small">チェックした項目が印刷レイアウトに掲載されます（最大15項目）。テキストは直接編集可能です。</p>
+        <div class="exclusion-preset-bar">
+          <span class="exclusion-preset-label">プリセット:</span>
+          <button class="btn-excl-preset" onclick="app.applyExclusionPreset('mizukei')">水系1軍</button>
+          <button class="btn-excl-preset" onclick="app.applyExclusionPreset('fuukei')">風系1軍</button>
+          <button class="btn-excl-preset" onclick="app.applyExclusionPreset('general')">一般（全項目）</button>
+        </div>
         <div class="exclusion-list" id="exclusionList"></div>
       </div>
 
@@ -366,6 +373,24 @@
       </div>
     </div>
 
+    <!-- ============================================================ -->
+    <!-- タブ④: 見積まとめ                                             -->
+    <!-- ============================================================ -->
+    <div id="tab-summary" class="tab-content">
+      <div class="summary-tab-toolbar">
+        <button class="btn-primary" onclick="app.generateSummaryPDF()">📄 集計表PDF出力</button>
+        <span class="summary-tab-hint">算出カテゴリ（①〜④）ごとに金額を集計して表示します</span>
+      </div>
+
+      <div id="summaryTableContainer" class="summary-tab-container">
+        <!-- JS で描画 -->
+      </div>
+
+      <div class="tab-footer">
+        <button class="btn-back" onclick="app.goToTab('output')">← PDF出力</button>
+      </div>
+    </div>
+
   </div><!-- /#app -->
 
   <!-- セクションテンプレート（非表示） -->
@@ -391,6 +416,8 @@
             <th class="col-unit">単位</th>
             <th class="col-price">単価</th>
             <th class="col-amount">金額</th>
+            <th class="col-genka">原価</th>
+            <th class="col-genka-amount">原価合計</th>
             <th class="col-houdan">歩単</th>
             <th class="col-houkou-kubun">歩工区分</th>
             <th class="col-houkou-goukei">歩工合計</th>
@@ -430,6 +457,8 @@
       </td>
       <td><input type="number" class="item-price" placeholder="（空欄可）" min="0"></td>
       <td><input type="number" class="item-amount" placeholder="0" min="0"></td>
+      <td class="col-genka"><span class="item-genka"></span></td>
+      <td class="col-genka-amount"><span class="item-genka-amount"></span></td>
       <td class="col-houdan"><span class="item-houdan"></span></td>
       <td class="col-houkou-kubun"><span class="item-houkou-kubun"></span></td>
       <td class="col-houkou-goukei"><input type="number" class="item-houkou-goukei" placeholder="-" min="0" step="any" title="手動入力で自動計算を上書き"></td>
